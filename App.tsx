@@ -352,8 +352,8 @@ const App: React.FC = () => {
                 <div className="flex items-center flex-wrap gap-3 animate-fade-in-up border-t-2 border-dashed border-gray-200 pt-4">
                    <ArrowRight className="text-pink-500" size={28} strokeWidth={4} />
                    <p className="mr-2">
-                     <span className="font-bold text-black">{problem.targetItems}</span>는 
-                     <span className="font-bold text-black mx-1">{problem.totalItems}</span>의
+                     <span className="font-bold text-black">{problem.targetGroups}</span>는 
+                     <span className="font-bold text-black mx-1">{problem.totalGroups}</span>의
                    </p>
                    <div className="inline-flex flex-col items-center align-middle mx-2 relative top-2">
                       <input 

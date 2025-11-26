@@ -143,7 +143,7 @@ export const Visualizer: React.FC<VisualizerProps> = ({
     return (
        <div className="flex flex-col items-center">
           <div className="mb-4 text-center text-gray-500 font-medium animate-pulse">
-            몇 묶음인지 맞추면 그림이 묶여요!
+            단위분수만큼 맞추면 그림이 묶여요!
           </div>
           <div className="flex flex-wrap justify-center gap-4 p-4 max-w-lg bg-white/50 rounded-2xl border-2 border-dashed border-gray-200">
             {Array.from({ length: problem.totalItems }).map((_, i) => (
