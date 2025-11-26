@@ -90,7 +90,6 @@ export const getMathExplanation = async (request: ExplanationRequest): Promise<s
       contents: prompt,
       config: {
         temperature: 0.9,
-        maxOutputTokens: 150,
       }
     });
 
