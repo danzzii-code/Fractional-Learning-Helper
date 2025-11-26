@@ -3,7 +3,6 @@ import { MathProblem, LessonType } from './types';
 import { Visualizer } from './components/Visualizer';
 import { getMathExplanation, getInitialGreeting, getRandomFeedback } from './services/geminiService';
 import { Sparkles, ArrowRight, RefreshCw, CheckCircle2, XCircle, Home, Calculator } from 'lucide-react';
-import { APP_TITLE, APP_SUBTITLE } from './constants';
 
 // --- PROBLEM GENERATOR ---
 const generateProblem = (lessonType: LessonType): MathProblem => {
@@ -30,7 +29,6 @@ const generateProblem = (lessonType: LessonType): MathProblem => {
     if (Math.random() > 0.5) {
       subType = 'length';
       itemType = 'ruler';
-      // For length, keep numbers small enough to fit on a mobile screen nicely
     }
   }
 
@@ -63,7 +61,6 @@ const App: React.FC = () => {
   const [isPartitioned, setIsPartitioned] = useState(true); // Controls if items are grouped or ruler is grid-lined
   const [activeSegments, setActiveSegments] = useState(0);  // For interactive ruler coloring
 
-  const [feedback, setFeedback] = useState<string>('');
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(false);
   const [tutorMessage, setTutorMessage] = useState<string>("로딩 중...");
@@ -91,15 +88,11 @@ const App: React.FC = () => {
     setUserUnitValue('');
     setActiveSegments(0);
     setIsCorrect(null);
-    setFeedback('');
+    setLoading(false);
     setTutorMessage("문제를 잘 보고 풀어보세요!");
     
-    // Initial Partition State Logic
-    if (type === 'representation') {
-      // Lesson 1: Start ungrouped (false)
-      setIsPartitioned(false);
-    } else if (type === 'value_finding') {
-      // Lesson 2: Both Length and Discrete start unpartitioned/interactive
+    // Initial Partition State Logic for interactive lessons
+    if (type === 'representation' || type === 'value_finding') {
       setIsPartitioned(false);
     } else {
       setIsPartitioned(true);
@@ -148,7 +141,6 @@ const App: React.FC = () => {
       return;
     }
 
-    // In value finding, unit value is the groupSize (e.g. 15 items / 3 groups = 5 items)
     if (val === problem.groupSize) {
       setIsPartitioned(true); // Visualizer groups the items
       setTutorMessage(getRandomFeedback(true) + " 맞아요! 그림이 묶였어요. 이제 전체 값을 구해볼까요?");
@@ -212,16 +204,16 @@ const App: React.FC = () => {
     setTutorMessage(getRandomFeedback(correct)); 
 
     // Get AI feedback in background
-    const aiFeedback = await getMathExplanation({
+    getMathExplanation({
       problem,
       isCorrect: correct,
       userNumerator: numerator,
       userDenominator: denominator,
       userValue: userValue
+    }).then(aiFeedback => {
+      setTutorMessage(aiFeedback);
+      setLoading(false);
     });
-    
-    setTutorMessage(aiFeedback);
-    setLoading(false);
   };
 
   // --- RENDER: HOME SCREEN ---
@@ -266,7 +258,7 @@ const App: React.FC = () => {
           </div>
           
           <div className="mt-12 text-gray-400 text-sm">
-            안녕! 냠냠 분수랑 같이 신나는 모험 떠나볼까?
+            {tutorMessage}
           </div>
         </div>
       </div>
@@ -281,10 +273,8 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#FDF2F8] flex flex-col items-center justify-center p-4 font-sans selection:bg-pink-200">
       
-      {/* Main Card */}
       <div className="w-full max-w-2xl bg-white rounded-[2.5rem] border-[6px] border-pink-300 shadow-[0_10px_0_rgb(249,168,212)] overflow-hidden relative">
         
-        {/* Header Badge */}
         <div className="absolute -top-1 left-1/2 transform -translate-x-1/2 w-full px-4 flex justify-center">
           <div className="bg-[#BE185D] text-white px-6 py-2 rounded-b-2xl shadow-lg flex items-center gap-2">
             <Sparkles size={20} className="text-yellow-300" />
@@ -295,7 +285,6 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        {/* Home Button */}
         <button 
           onClick={goHome} 
           className="absolute top-4 left-4 text-gray-400 hover:text-pink-500 transition-colors"
@@ -306,7 +295,6 @@ const App: React.FC = () => {
 
         <div className="pt-20 pb-10 px-6 md:px-12 text-center">
           
-          {/* Visualizer */}
           <div className="bg-blue-50 rounded-3xl p-2 mb-8 border-2 border-blue-100 min-h-[200px] flex items-center justify-center">
             <Visualizer 
               problem={problem} 
@@ -317,75 +305,77 @@ const App: React.FC = () => {
             />
           </div>
 
-          {/* --- LESSON 1 UI: INTERACTIVE GROUPING & FRACTION --- */}
           {isRepresentation && (
             <div className="text-left space-y-6 text-lg md:text-2xl font-medium text-gray-700 leading-relaxed">
-              {/* Step 1: Calculate Groups */}
-              <div className="flex items-center flex-wrap gap-3">
-                <CheckCircle2 className="text-black mt-1 flex-shrink-0" size={24} />
-                <p>
-                  <span className="font-bold text-black">{problem.totalItems}</span>를 
-                  <span className="font-bold text-black mx-1">{problem.groupSize}</span>씩 묶으면
-                </p>
-                <input 
-                  type="tel" 
-                  value={userTotalGroups}
-                  onChange={(e) => setUserTotalGroups(e.target.value)}
-                  disabled={isPartitioned} // Disable after correct
-                  className={`w-16 h-12 text-center text-2xl font-bold border-2 rounded-lg focus:outline-none focus:ring-4 transition-colors ${isPartitioned ? 'bg-green-50 border-green-400 text-green-600' : 'border-gray-300 focus:border-pink-400'}`}
-                  placeholder="?"
-                />
-                <p>묶음입니다.</p>
-                {!isPartitioned && (
+              {!isPartitioned ? (
+                <div className="flex items-center flex-wrap gap-3">
+                  <CheckCircle2 className="text-black mt-1 flex-shrink-0" size={24} />
+                  <p>
+                    <span className="font-bold text-black">{problem.totalItems}</span>를 
+                    <span className="font-bold text-black mx-1">{problem.groupSize}</span>씩 묶으면
+                  </p>
+                  <input 
+                    type="tel" 
+                    value={userTotalGroups}
+                    onChange={(e) => setUserTotalGroups(e.target.value)}
+                    className="w-16 h-12 text-center text-2xl font-bold border-2 rounded-lg focus:outline-none focus:ring-4 transition-colors border-gray-300 focus:border-pink-400"
+                    placeholder="?"
+                  />
+                  <p>묶음입니다.</p>
                   <button 
-                    onClick={checkTotalGroups}
-                    className="bg-pink-400 hover:bg-pink-500 text-white text-sm px-4 py-2 rounded-lg shadow-sm ml-2"
+                      onClick={checkTotalGroups}
+                      className="bg-pink-400 hover:bg-pink-500 text-white text-sm px-4 py-2 rounded-lg shadow-sm ml-2"
                   >
                     확인
                   </button>
-                )}
-              </div>
-
-              {/* Step 2: Fraction Input (Visible after Step 1) */}
-              {isPartitioned && (
-                <div className="flex items-center flex-wrap gap-3 animate-fade-in-up border-t-2 border-dashed border-gray-200 pt-4">
-                   <ArrowRight className="text-pink-500" size={28} strokeWidth={4} />
-                   <p className="mr-2">
-                     <span className="font-bold text-black">{problem.targetGroups}</span>는 
-                     <span className="font-bold text-black mx-1">{problem.totalGroups}</span>의
-                   </p>
-                   <div className="inline-flex flex-col items-center align-middle mx-2 relative top-2">
-                      <input 
-                        type="tel" 
-                        value={numerator}
-                        onChange={(e) => setNumerator(e.target.value)}
-                        disabled={isCorrect === true}
-                        className={`w-16 h-12 text-center text-2xl font-bold border-2 rounded-lg focus:outline-none focus:ring-4 transition-colors ${isCorrect === true ? 'bg-green-50 border-green-400 text-green-600' : isCorrect === false ? 'bg-red-50 border-red-400 text-red-600' : 'border-gray-300 focus:border-pink-400'}`}
-                        placeholder="?"
-                      />
-                      <div className="w-full h-1 bg-gray-800 my-1 rounded-full"></div>
-                      <input 
-                        type="tel" 
-                        value={denominator}
-                        onChange={(e) => setDenominator(e.target.value)}
-                        disabled={isCorrect === true}
-                        className={`w-16 h-12 text-center text-2xl font-bold border-2 rounded-lg focus:outline-none focus:ring-4 transition-colors ${isCorrect === true ? 'bg-green-50 border-green-400 text-green-600' : isCorrect === false ? 'bg-red-50 border-red-400 text-red-600' : 'border-gray-300 focus:border-pink-400'}`}
-                        placeholder="?"
-                      />
-                   </div>
-                   <p>입니다.</p>
                 </div>
+              ) : (
+                <>
+                  <div className="flex items-center flex-wrap gap-3">
+                    <CheckCircle2 className="text-black mt-1 flex-shrink-0" size={24} />
+                    <p>
+                      <span className="font-bold text-black">{problem.totalItems}</span>를 
+                      <span className="font-bold text-black mx-1">{problem.groupSize}</span>씩 묶으면
+                      <span className="inline-block w-16 h-12 text-center text-2xl font-bold rounded-lg bg-green-50 border-2 border-green-400 text-green-600 mx-2 leading-10">{problem.totalGroups}</span>
+                      묶음입니다.
+                    </p>
+                  </div>
+                  <div className="flex items-center flex-wrap gap-3 animate-in fade-in slide-in-from-bottom-4 duration-500 border-t-2 border-dashed border-gray-200 pt-4">
+                     <ArrowRight className="text-pink-500" size={28} strokeWidth={4} />
+                     <p className="mr-2">
+                       <span className="font-bold text-black">{problem.targetItems}</span>는 
+                       <span className="font-bold text-black mx-1">{problem.totalItems}</span>의
+                     </p>
+                     <div className="inline-flex flex-col items-center align-middle mx-2 relative top-2">
+                        <input 
+                          type="tel" 
+                          value={numerator}
+                          onChange={(e) => setNumerator(e.target.value)}
+                          disabled={isCorrect === true}
+                          className={`w-16 h-12 text-center text-2xl font-bold border-2 rounded-lg focus:outline-none focus:ring-4 transition-colors ${isCorrect === true ? 'bg-green-50 border-green-400 text-green-600' : isCorrect === false ? 'bg-red-50 border-red-400 text-red-600' : 'border-gray-300 focus:border-pink-400'}`}
+                          placeholder="?"
+                        />
+                        <div className="w-full h-1 bg-gray-800 my-1 rounded-full"></div>
+                        <input 
+                          type="tel" 
+                          value={denominator}
+                          onChange={(e) => setDenominator(e.target.value)}
+                          disabled={isCorrect === true}
+                          className={`w-16 h-12 text-center text-2xl font-bold border-2 rounded-lg focus:outline-none focus:ring-4 transition-colors ${isCorrect === true ? 'bg-green-50 border-green-400 text-green-600' : isCorrect === false ? 'bg-red-50 border-red-400 text-red-600' : 'border-gray-300 focus:border-pink-400'}`}
+                          placeholder="?"
+                        />
+                     </div>
+                     <p>입니다.</p>
+                  </div>
+                </>
               )}
             </div>
           )}
 
-          {/* --- LESSON 2 UI: VALUE INPUT --- */}
           {!isRepresentation && (
             <div className="text-left space-y-6 text-lg md:text-2xl font-medium text-gray-700 leading-relaxed">
-              
               {problem.subType === 'discrete' ? (
-                /* Discrete Logic Text */
-                <>
+                !isPartitioned ? (
                   <div className="flex items-center flex-wrap gap-1 md:gap-2">
                      <ArrowRight className="text-pink-500 mr-1 md:mr-2 flex-shrink-0" size={24} strokeWidth={3} />
                      <span>전체</span>
@@ -396,28 +386,37 @@ const App: React.FC = () => {
                         <span className="font-bold text-black leading-none">{problem.totalGroups}</span>
                      </div>
                      <span>은(는)</span>
-                     {/* Unit Value Input */}
                      <input 
                         type="tel" 
                         value={userUnitValue}
                         onChange={(e) => setUserUnitValue(e.target.value)}
-                        disabled={isPartitioned} // Disable after correct
-                        className={`w-16 h-12 text-center text-2xl font-bold border-2 rounded-lg focus:outline-none focus:ring-4 transition-colors mx-1 ${isPartitioned ? 'bg-green-50 border-green-400 text-green-600' : 'border-gray-300 focus:border-blue-400'}`}
+                        className="w-16 h-12 text-center text-2xl font-bold border-2 rounded-lg focus:outline-none focus:ring-4 transition-colors mx-1 border-gray-300 focus:border-blue-400"
                         placeholder="?"
                      />
                      <span>입니다.</span>
-                     {!isPartitioned && (
-                        <button 
-                          onClick={checkUnitValue}
-                          className="bg-blue-400 hover:bg-blue-500 text-white text-sm px-4 py-2 rounded-lg shadow-sm ml-2"
-                        >
-                          확인
-                        </button>
-                     )}
+                     <button 
+                        onClick={checkUnitValue}
+                        className="bg-blue-400 hover:bg-blue-500 text-white text-sm px-4 py-2 rounded-lg shadow-sm ml-2"
+                     >
+                       확인
+                     </button>
                   </div>
-                  
-                  {isPartitioned && (
-                    <div className="flex items-center flex-wrap gap-1 md:gap-2 animate-fade-in-up mt-4">
+                ) : (
+                  <>
+                    <div className="flex items-center flex-wrap gap-1 md:gap-2">
+                       <ArrowRight className="text-pink-500 mr-1 md:mr-2 flex-shrink-0" size={24} strokeWidth={3} />
+                       <span>전체</span>
+                       <span className="font-bold text-black">{problem.totalItems}</span>
+                       <span>의</span>
+                       <div className="inline-flex flex-col items-center align-middle mx-1">
+                          <span className="font-bold text-black border-b-2 border-black px-1 leading-none mb-0.5">1</span>
+                          <span className="font-bold text-black leading-none">{problem.totalGroups}</span>
+                       </div>
+                       <span>은(는)</span>
+                       <span className="inline-block w-16 h-12 text-center text-2xl font-bold rounded-lg bg-green-50 border-2 border-green-400 text-green-600 mx-1 leading-10">{problem.groupSize}</span>
+                       <span>입니다.</span>
+                    </div>
+                    <div className="flex items-center flex-wrap gap-1 md:gap-2 animate-in fade-in slide-in-from-bottom-4 duration-500 mt-4">
                        <CheckCircle2 className="text-black mr-1 md:mr-2" size={24} />
                        <span>그렇다면</span>
                        <span className="font-bold text-black">{problem.totalItems}</span>
@@ -437,43 +436,36 @@ const App: React.FC = () => {
                         />
                         <span>입니다.</span>
                     </div>
-                  )}
-                </>
+                  </>
+                )
               ) : (
-                /* Length Logic Text */
-                <>
-                   <div className="flex items-center flex-wrap gap-2 animate-fade-in-up justify-center text-xl md:text-2xl">
-                     <div className="flex items-center">
-                       <span className="font-bold text-black">{problem.totalItems} cm</span>의
-                     </div>
-                     
-                     <div className="inline-flex flex-col items-center align-middle mx-2">
-                       <span className="font-bold text-black border-b-2 border-black px-2 leading-none mb-1">{problem.targetGroups}</span>
-                       <span className="font-bold text-black leading-none">{problem.totalGroups}</span>
-                     </div>
-
-                     <div className="flex items-center gap-2 flex-wrap">
-                        <span>은(는)</span>
-                        <input 
-                          type="tel" 
-                          value={userValue}
-                          onChange={(e) => setUserValue(e.target.value)}
-                          disabled={isCorrect === true}
-                          className={`w-20 h-14 text-center text-2xl font-bold border-2 rounded-lg focus:outline-none focus:ring-4 transition-colors ${isCorrect === true ? 'bg-green-50 border-green-400 text-green-600' : isCorrect === false ? 'bg-red-50 border-red-400 text-red-600' : 'border-gray-300 focus:border-blue-400'}`}
-                          placeholder="?"
-                        />
-                        <span className="font-bold text-black">cm</span>
-                        <span>입니다.</span>
-                     </div>
-                  </div>
-                </>
+                <div className="flex items-center flex-wrap gap-2 animate-in fade-in justify-center text-xl md:text-2xl">
+                   <div className="flex items-center">
+                     <span className="font-bold text-black">{problem.totalItems} cm</span>의
+                   </div>
+                   <div className="inline-flex flex-col items-center align-middle mx-2">
+                     <span className="font-bold text-black border-b-2 border-black px-2 leading-none mb-1">{problem.targetGroups}</span>
+                     <span className="font-bold text-black leading-none">{problem.totalGroups}</span>
+                   </div>
+                   <div className="flex items-center gap-2 flex-wrap">
+                      <span>은(는)</span>
+                      <input 
+                        type="tel" 
+                        value={userValue}
+                        onChange={(e) => setUserValue(e.target.value)}
+                        disabled={isCorrect === true}
+                        className={`w-20 h-14 text-center text-2xl font-bold border-2 rounded-lg focus:outline-none focus:ring-4 transition-colors ${isCorrect === true ? 'bg-green-50 border-green-400 text-green-600' : isCorrect === false ? 'bg-red-50 border-red-400 text-red-600' : 'border-gray-300 focus:border-blue-400'}`}
+                        placeholder="?"
+                      />
+                      <span className="font-bold text-black">cm</span>
+                      <span>입니다.</span>
+                   </div>
+                </div>
               )}
             </div>
           )}
 
-          {/* Controls (Shared) */}
           <div className="mt-10 flex flex-col items-center gap-4">
-            {/* Show check button only for Lesson 2 OR Lesson 1 Step 2 */}
             {isCorrect === null && isPartitioned && (
               <button 
                 onClick={handleCheck}
@@ -492,11 +484,9 @@ const App: React.FC = () => {
                       {isCorrect ? '정답입니다!' : '다시 생각해보세요!'}
                     </span>
                   </div>
-                  
                   <div className="bg-white/80 p-3 rounded-xl w-full text-gray-700 text-sm md:text-base">
                      💡 <b>선생님 말씀:</b> {tutorMessage}
                   </div>
-
                   <button 
                     onClick={handleNext}
                     className="mt-2 bg-white hover:bg-gray-50 text-gray-700 font-bold py-2 px-6 rounded-xl border-2 border-gray-200 flex items-center gap-2 shadow-sm"
@@ -513,7 +503,6 @@ const App: React.FC = () => {
               </div>
             )}
           </div>
-
         </div>
       </div>
       
