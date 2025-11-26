@@ -139,6 +139,7 @@ export const Visualizer: React.FC<VisualizerProps> = ({
   };
 
   // Unpartitioned State: Show ungrouped items (Simple Grid)
+  // This logic works with the App.tsx logic where isPartitioned starts as false for discrete Lesson 2
   if (!isPartitioned && problem.subType === 'discrete') {
     return (
        <div className="flex flex-col items-center">
