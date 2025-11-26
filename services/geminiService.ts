@@ -1,8 +1,9 @@
-
 import { GoogleGenAI } from "@google/genai";
 import { ExplanationRequest, MathProblem } from "../types";
 
-// Use process.env.API_KEY as defined in vite.config.ts definition
+// Retrieve API key safely for both browser (Vite) and build environments
+// The coding guidelines specify using process.env.API_KEY directly.
+// The vite.config.ts polyfills this for the browser.
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const POSITIVE_FEEDBACKS = [
